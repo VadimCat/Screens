@@ -1,0 +1,18 @@
+{
+    "name": "Ji2.Screens",
+    "rootNamespace": "Ji2",
+    "references": [
+        "UniTask",
+        "Camera",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
