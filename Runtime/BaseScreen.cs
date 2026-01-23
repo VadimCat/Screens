@@ -1,9 +1,9 @@
 ﻿using Cysharp.Threading.Tasks;
-using Sirenix.OdinInspector;
+using UnityEngine;
 
 namespace Ji2.Screens
 {
-    public abstract class BaseScreen : SerializedMonoBehaviour
+    public abstract class BaseScreen : MonoBehaviour
     {
         public virtual UniTask Show()
         {
