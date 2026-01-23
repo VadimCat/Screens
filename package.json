@@ -1,11 +1,14 @@
 {
   "name": "com.ji2.screens",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "displayName": "Ji2 Screens",
   "description": "Screen navigation primitives and base screen behavior.",
   "unity": "2022.3",
   "dependencies": {
-    "com.unity.ugui": "1.0.0"
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
+    "jp.hadashikick.vcontainer": "https://github.com/hadashiA/VContainer.git?path=VContainer/Assets/VContainer#1.16.8",
+    "com.unity.ugui": "1.0.0",
+        "com.ji2.camera-source": "https://github.com/VadimCat/CameraSource.git#1.0.0"
   },
   "author": {
     "name": "Ji2"
