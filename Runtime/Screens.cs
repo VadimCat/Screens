@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Ji2.Camera;
 using Ji2.Screens;
@@ -20,28 +19,55 @@ namespace Ji2Core.Core.ScreenNavigation
 
         private Dictionary<Type, BaseScreen> _screenOrigins;
 
-        private BaseScreen _currentScreen;
         private CameraSource _cameraSource;
         private IObjectResolver _resolver;
-
-        public BaseScreen CurrentScreen => _currentScreen;
+        private readonly Stack<BaseScreen> _screenStack = new();
+        public BaseScreen CurrentScreen => _screenStack.TryPeek(out var screen) ? screen : null;
 
         public Vector2 ScreenSize => new(transform.rect.width, transform.rect.height);
 
         public float ScaleFactor => transform.rect.height / scaler.referenceResolution.y;
 
         [Inject]
-        public void Construct(CameraSource cameraSource, IObjectResolver resolver)
+        private void Construct(CameraSource cameraSource, IObjectResolver resolver)
         {
             _resolver = resolver;
             _cameraSource = cameraSource;
             _cameraSource.CameraChanged += SetCamera;
             SetCamera(cameraSource.MainCamera);
-                
+
             _screenOrigins = new Dictionary<Type, BaseScreen>();
             foreach (var screen in screens)
             {
                 _screenOrigins[screen.GetType()] = screen;
+            }
+        }
+
+        public async UniTask<BaseScreen> PushScreen(Type type)
+        {
+            var screen = InstantiateScreen(type);
+            await screen.Show();
+            return screen;
+        }
+
+        public async UniTask<TScreen> PushScreen<TScreen>() where TScreen : BaseScreen
+        {
+            if (CurrentScreen is TScreen screen)
+            {
+                Debug.LogError($"Screen of type {typeof(TScreen)} is already the current screen.");
+                return screen;
+            }
+
+            var newScreen = InstantiateScreen(typeof(TScreen));
+            await newScreen.Show();
+            return (TScreen)CurrentScreen;
+        }
+
+        public async UniTask CloseScreen<TScreen>() where TScreen : BaseScreen
+        {
+            if (CurrentScreen is TScreen)
+            {
+                await CloseCurrent();
             }
         }
 
@@ -50,50 +76,23 @@ namespace Ji2Core.Core.ScreenNavigation
             canvas.worldCamera = camera;
         }
 
-        public async Task<BaseScreen> PushScreen(Type type)
+        private BaseScreen InstantiateScreen(Type type)
         {
-            if (_currentScreen != null)
-            {
-                await CloseCurrent();
-            }
-
-            _currentScreen = Instantiate(_screenOrigins[type], transform);
-            await _currentScreen.Show();
-            return _currentScreen;
-        }
-
-        public async UniTask<TScreen> PushScreen<TScreen>() where TScreen : BaseScreen
-        {
-            if (_currentScreen != null)
-            {
-                await CloseCurrent();
-            }
-
-            if (_currentScreen is TScreen screen)
-            {
-                return screen;
-            }
-            
-            _currentScreen = _resolver.Instantiate(_screenOrigins[typeof(TScreen)], transform);
-            await _currentScreen.Show();
-            return (TScreen)_currentScreen;
-        }
-
-        public async UniTask CloseScreen<TScreen>() where TScreen : BaseScreen
-        {
-            if (_currentScreen is TScreen)
-            {
-                await _currentScreen.Close();
-                Destroy(_currentScreen.gameObject);
-                _currentScreen = null;
-            }
+            var screen = _resolver.Instantiate(_screenOrigins[type], transform);
+            _screenStack.Push(screen);
+            return screen;
         }
 
         private async UniTask CloseCurrent()
         {
-            await _currentScreen.Close();
-            Destroy(_currentScreen.gameObject);
-            _currentScreen = null;
+            await CurrentScreen.Hide();
+            Destroy(CurrentScreen.gameObject);
+            _screenStack.Pop();
+        }
+
+        private void OnDestroy()
+        {
+            _cameraSource.CameraChanged -= SetCamera;
         }
     }
 

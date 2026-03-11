@@ -10,7 +10,7 @@ namespace Ji2.Screens
             return UniTask.CompletedTask;
         }
 
-        public virtual UniTask Close()
+        public virtual UniTask Hide()
         {
             gameObject.SetActive(false);
             return UniTask.CompletedTask;
