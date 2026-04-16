@@ -95,9 +95,4 @@ namespace Ji2Core.Core.ScreenNavigation
             _cameraSource.CameraChanged -= SetCamera;
         }
     }
-
-    public interface IScreenSize
-    {
-        Vector2 ScreenSize { get; }
-    }
 }
