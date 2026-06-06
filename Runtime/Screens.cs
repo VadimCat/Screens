@@ -19,22 +19,20 @@ namespace Ji2Core.Core.ScreenNavigation
 
         private Dictionary<Type, BaseScreen> _screenOrigins;
 
-        private CameraSource _cameraSource;
         private IObjectResolver _resolver;
+        private CameraSource _cameraSource;
         private readonly Stack<BaseScreen> _screenStack = new();
         public BaseScreen CurrentScreen => _screenStack.TryPeek(out var screen) ? screen : null;
 
         public Vector2 ScreenSize => new(transform.rect.width, transform.rect.height);
-
-        public float ScaleFactor => transform.rect.height / scaler.referenceResolution.y;
 
         [Inject]
         private void Construct(CameraSource cameraSource, IObjectResolver resolver)
         {
             _resolver = resolver;
             _cameraSource = cameraSource;
-            _cameraSource.CameraChanged += SetCamera;
-            SetCamera(cameraSource.MainCamera);
+            _cameraSource.CameraChanged += OnCameraChanged;
+            canvas.worldCamera = _cameraSource.MainCamera;
 
             _screenOrigins = new Dictionary<Type, BaseScreen>();
             foreach (var screen in screens)
@@ -71,16 +69,16 @@ namespace Ji2Core.Core.ScreenNavigation
             }
         }
 
-        private void SetCamera(Camera camera)
-        {
-            canvas.worldCamera = camera;
-        }
-
         private BaseScreen InstantiateScreen(Type type)
         {
             var screen = _resolver.Instantiate(_screenOrigins[type], transform);
             _screenStack.Push(screen);
             return screen;
+        }
+
+        private void OnCameraChanged(UnityEngine.Camera camera)
+        {
+            canvas.worldCamera = camera;
         }
 
         private async UniTask CloseCurrent()
@@ -92,7 +90,7 @@ namespace Ji2Core.Core.ScreenNavigation
 
         private void OnDestroy()
         {
-            _cameraSource.CameraChanged -= SetCamera;
+            _cameraSource.CameraChanged -= OnCameraChanged;
         }
     }
 }
