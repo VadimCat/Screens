@@ -12,10 +12,11 @@ namespace Ji2Core.Core.ScreenNavigation
 {
     public class Screens : MonoBehaviour, IScreenSize
     {
-        [SerializeField] private Canvas canvas;
+        [SerializeField] private Canvas _threeDimensionalCanvas;
+        [SerializeField] private RectTransform _threeDimensionalRoot;
+        [SerializeField] private Canvas _overlayCanvas;
+        [SerializeField] private RectTransform _overlayRoot;
         [SerializeField] private List<BaseScreen> screens;
-        [SerializeField] private RectTransform transform;
-        [SerializeField] private CanvasScaler scaler;
 
         private Dictionary<Type, BaseScreen> _screenOrigins;
 
@@ -24,7 +25,7 @@ namespace Ji2Core.Core.ScreenNavigation
         private readonly Stack<BaseScreen> _screenStack = new();
         public BaseScreen CurrentScreen => _screenStack.TryPeek(out var screen) ? screen : null;
 
-        public Vector2 ScreenSize => new(transform.rect.width, transform.rect.height);
+        public Vector2 ScreenSize => new(_overlayRoot.rect.width, _overlayRoot.rect.height);
 
         [Inject]
         private void Construct(CameraSource cameraSource, IObjectResolver resolver)
@@ -32,7 +33,7 @@ namespace Ji2Core.Core.ScreenNavigation
             _resolver = resolver;
             _cameraSource = cameraSource;
             _cameraSource.CameraChanged += OnCameraChanged;
-            canvas.worldCamera = _cameraSource.MainCamera;
+            _threeDimensionalCanvas.worldCamera = _cameraSource.MainCamera;
 
             _screenOrigins = new Dictionary<Type, BaseScreen>();
             foreach (var screen in screens)
@@ -71,14 +72,24 @@ namespace Ji2Core.Core.ScreenNavigation
 
         private BaseScreen InstantiateScreen(Type type)
         {
-            var screen = _resolver.Instantiate(_screenOrigins[type], transform);
+            var origin = _screenOrigins[type];
+            var root = origin.DisplayMode == ScreenDisplayMode.Overlay
+                ? _overlayRoot
+                : _threeDimensionalRoot;
+            var screen = _resolver.Instantiate(origin, root);
+
+            if (screen is IOverlayContentScreen overlayContentScreen)
+            {
+                overlayContentScreen.AttachOverlayContent(_overlayRoot);
+            }
+
             _screenStack.Push(screen);
             return screen;
         }
 
         private void OnCameraChanged(UnityEngine.Camera camera)
         {
-            canvas.worldCamera = camera;
+            _threeDimensionalCanvas.worldCamera = camera;
         }
 
         private async UniTask CloseCurrent()
