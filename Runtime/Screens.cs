@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using Ji2.Camera;
 using Ji2.Screens;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using VContainer;
 using VContainer.Unity;
@@ -12,9 +13,14 @@ namespace Ji2Core.Core.ScreenNavigation
 {
     public class Screens : MonoBehaviour, IScreenSize
     {
+        [Header("Optional 3D screens")]
         [SerializeField] private Canvas _threeDimensionalCanvas;
         [SerializeField] private RectTransform _threeDimensionalRoot;
+
+        [Header("Overlay screens")]
+        [FormerlySerializedAs("canvas")]
         [SerializeField] private Canvas _overlayCanvas;
+        [FormerlySerializedAs("transform")]
         [SerializeField] private RectTransform _overlayRoot;
         [SerializeField] private List<BaseScreen> screens;
 
@@ -25,7 +31,9 @@ namespace Ji2Core.Core.ScreenNavigation
         private readonly Stack<BaseScreen> _screenStack = new();
         public BaseScreen CurrentScreen => _screenStack.TryPeek(out var screen) ? screen : null;
 
-        public Vector2 ScreenSize => new(_overlayRoot.rect.width, _overlayRoot.rect.height);
+        public Vector2 ScreenSize => _overlayRoot != null
+            ? new Vector2(_overlayRoot.rect.width, _overlayRoot.rect.height)
+            : new Vector2(Screen.width, Screen.height);
 
         [Inject]
         private void Construct(CameraSource cameraSource, IObjectResolver resolver)
@@ -33,7 +41,10 @@ namespace Ji2Core.Core.ScreenNavigation
             _resolver = resolver;
             _cameraSource = cameraSource;
             _cameraSource.CameraChanged += OnCameraChanged;
-            _threeDimensionalCanvas.worldCamera = _cameraSource.MainCamera;
+            if (_threeDimensionalCanvas != null)
+            {
+                _threeDimensionalCanvas.worldCamera = _cameraSource.MainCamera;
+            }
 
             _screenOrigins = new Dictionary<Type, BaseScreen>();
             foreach (var screen in screens)
@@ -73,12 +84,19 @@ namespace Ji2Core.Core.ScreenNavigation
         private BaseScreen InstantiateScreen(Type type)
         {
             var origin = _screenOrigins[type];
-            var root = origin.DisplayMode == ScreenDisplayMode.Overlay
-                ? _overlayRoot
-                : _threeDimensionalRoot;
+            var root = origin.DisplayMode == ScreenDisplayMode.ThreeDimensional
+                       && _threeDimensionalRoot != null
+                ? _threeDimensionalRoot
+                : _overlayRoot;
+            if (root == null)
+            {
+                throw new InvalidOperationException(
+                    "Screens requires an overlay root. Assign it in the Screens prefab.");
+            }
+
             var screen = _resolver.Instantiate(origin, root);
 
-            if (screen is IOverlayContentScreen overlayContentScreen)
+            if (screen is IOverlayContentScreen overlayContentScreen && _overlayRoot != null)
             {
                 overlayContentScreen.AttachOverlayContent(_overlayRoot);
             }
@@ -89,7 +107,10 @@ namespace Ji2Core.Core.ScreenNavigation
 
         private void OnCameraChanged(UnityEngine.Camera camera)
         {
-            _threeDimensionalCanvas.worldCamera = camera;
+            if (_threeDimensionalCanvas != null)
+            {
+                _threeDimensionalCanvas.worldCamera = camera;
+            }
         }
 
         private async UniTask CloseCurrent()
@@ -101,7 +122,10 @@ namespace Ji2Core.Core.ScreenNavigation
 
         private void OnDestroy()
         {
-            _cameraSource.CameraChanged -= OnCameraChanged;
+            if (_cameraSource != null)
+            {
+                _cameraSource.CameraChanged -= OnCameraChanged;
+            }
         }
     }
 }
